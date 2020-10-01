@@ -51,7 +51,7 @@ def cosine_similarity(a,b):
 
 @st.cache
 def load_pretrained_model():
-    weigths_path = '../pretrained/sketch_embedding.h5'
+    weigths_path = '../../pretrained/sketch_embedding.h5'
     return load_model(weigths_path)
 
 def main():
