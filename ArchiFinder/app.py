@@ -11,7 +11,7 @@ from streamlit import caching
 
 
 def load_embbedings():
-    df = pd.read_csv('./embeddings.csv')
+    df = pd.read_csv('../../embeddings.csv')
     return df
 
 @st.cache
@@ -53,35 +53,50 @@ def cosine_similarity(a,b):
 def load_pretrained_model():
     weigths_path = '../../pretrained/sketch_embedding.h5'
     return load_model(weigths_path)
+    
+
+def find_similarity(df, embedding_vector,my_bar):
+    similarity = []
+    for i in range(len(df)):
+        similarity.append(cosine_similarity(df.iloc[i,2:],embedding_vector))
+        percent_complete =  (i+1)/len(df)
+        my_bar.progress(percent_complete)
+    df['similarity'] = similarity
+    return df
 
 def main():
     #caching.clear_cache()
-    st.title("Find the real architecture from sketch")
+    st.title("Find the real architectures from sketch")
     st.set_option('deprecation.showfileUploaderEncoding', False)
 
     embedding_model = load_pretrained_model()
     
     df = load_embbedings()
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg",'png'])
+    uploaded_file = st.file_uploader("Upload an image...", type=["jpg",'png'])
+
+    option = st.selectbox(
+    "Or choose an test image", ("Please choose an option","image1.jpg", "image2.jpg", "image3.png"))
+    image = None
     if uploaded_file is not None:
         image = np.array(Image.open(uploaded_file))
         if len(image.shape) == 3 and  image.shape[2] == 4:
             image = image[:,:,0:3]
         if len(image.shape) == 2:
             image = np.stack([image,image,image],-1)
+    else: 
+        if option != "Please choose an option":
+            image = cv2.imread(f'./sample_images/test_{option}')
 
+    if image is not None:
         st.image(image, caption='Uploaded Image.', use_column_width=True)
         st.write("")
         embedding_vector = generate_embbedings(embedding_model, image)
 
         st.write("searching in the database...")
         my_bar = st.progress(0)
-        similarity = []
-        for i in range(len(df)):
-            similarity.append(cosine_similarity(df.iloc[i,2:],embedding_vector))
-            percent_complete =  (i+1)/len(df)
-            my_bar.progress(percent_complete)
-        df['similarity'] = similarity
+
+        df = find_similarity(df,embedding_vector,my_bar)
+        
         df = df.sort_values(by = 'similarity', ascending=False).iloc[:5,:]
 
         topsimilars = df.filepath.to_list()
