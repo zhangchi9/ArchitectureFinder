@@ -62,6 +62,7 @@ def find_similarity(df, embedding_vector,my_bar):
         percent_complete =  (i+1)/len(df)
         my_bar.progress(percent_complete)
     df['similarity'] = similarity
+    df = df.drop_duplicates('similarity')
     return df
 
 def main():
@@ -75,7 +76,7 @@ def main():
     uploaded_file = st.file_uploader("Upload an image...", type=["jpg",'png'])
 
     option = st.selectbox(
-    "Or choose an test image", ("Please choose an option","image1.jpg", "image2.jpg", "image3.png"))
+    "Or choose an test image", ("Please choose an option","image1.png", "image2.png", "image3.jpg", "image4.jpg", "image5.jpg", "image6.jpg"))
     image = None
     if uploaded_file is not None:
         image = np.array(Image.open(uploaded_file))
