@@ -7,11 +7,18 @@ from PIL import Image
 import cv2
 from tensorflow.keras.models import load_model
 from streamlit import caching
+from utils import *
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-
-
-def load_embbedings():
-    df = pd.read_csv('../../embeddings.csv')
+def load_embeddings(class_name):
+    conn, cursor = connect()
+    if len(class_name) == 1:
+        sql_query = f"select * from image_embeddings where style in (\'{class_name[0]}\')"
+    else:
+        sql_query = f"select * from image_embeddings where style in {str(tuple(class_name))}"
+        
+    df = pd.read_sql(sql_query,conn)
     return df
 
 @st.cache
@@ -40,29 +47,36 @@ def sketchify(jc):
     return img
 
 @st.cache
-def generate_embbedings(embedding_model, img):
+def get_embeddings(model, img):
     img = cv2.resize(img,(256,256),interpolation = cv2.INTER_AREA)
     sketch_im = sketchify(img)/255
-    embeddings = embedding_model.predict(sketch_im[np.newaxis,:,:,:])
-    return embeddings[0]
+
+    output = model.predict(sketch_im[np.newaxis,:,:,:])
+    class_ = output[1]
+    embedding_vector = output[0][0]
+    index = np.where(class_[0] > 0.01)[0]
+    class_name = []
+    for i in index:
+        class_name.append(class_index[i])
+    return class_name, embedding_vector
 
 def cosine_similarity(a,b):
     return dot(a, b)/(norm(a)*norm(b))
 
 @st.cache
 def load_pretrained_model():
-    weigths_path = '../../pretrained/sketch_embedding.h5'
+    weigths_path = '../../pretrained/model.h5'
     return load_model(weigths_path)
     
 
 def find_similarity(df, embedding_vector,my_bar):
     similarity = []
     for i in range(len(df)):
-        similarity.append(cosine_similarity(df.iloc[i,2:],embedding_vector))
+        embeddings = np.fromstring(df.iloc[i,3], dtype=float, sep=',')
+        similarity.append(cosine_similarity(embeddings,embedding_vector))
         percent_complete =  (i+1)/len(df)
         my_bar.progress(percent_complete)
     df['similarity'] = similarity
-    df = df.drop_duplicates('similarity')
     return df
 
 def main():
@@ -70,13 +84,12 @@ def main():
     st.title("Find the real architectures from sketch")
     st.set_option('deprecation.showfileUploaderEncoding', False)
 
-    embedding_model = load_pretrained_model()
+    model = load_pretrained_model()
     
-    df = load_embbedings()
-    uploaded_file = st.file_uploader("Upload an image...", type=["jpg",'png'])
+    uploaded_file = st.file_uploader("Upload an image...", type=["jpg",'png','jpeg'])
 
     option = st.selectbox(
-    "Or choose an test image", ("Please choose an option","image1.png", "image2.png", "image3.jpg", "image4.jpg", "image5.jpg", "image6.jpg"))
+    "Or choose a test image", ("Please choose an option","image1.png", "image2.png", "image3.jpg", "image4.jpg", "image5.jpg", "image6.jpg"))
     image = None
     if uploaded_file is not None:
         image = np.array(Image.open(uploaded_file))
@@ -91,8 +104,9 @@ def main():
     if image is not None:
         st.image(image, caption='Uploaded Image.', use_column_width=True)
         st.write("")
-        embedding_vector = generate_embbedings(embedding_model, image)
+        class_name, embedding_vector = get_embeddings(model, image)
 
+        df = load_embeddings(class_name)
         st.write("searching in the database...")
         my_bar = st.progress(0)
 
@@ -102,10 +116,10 @@ def main():
 
         topsimilars = df.filepath.to_list()
         for filename in topsimilars:
+            filename = '/Users/chizhang/Downloads/archive' + filename
             recommended_img = cv2.imread(f'{filename}')
             recommended_img = cv2.resize(recommended_img,(1024,1024),interpolation = cv2.INTER_AREA)
             st.image(recommended_img, use_column_width=True)
-
 
 if __name__ == "__main__": 
     main()
