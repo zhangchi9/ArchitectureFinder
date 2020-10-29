@@ -22,31 +22,6 @@ def load_embeddings(class_name):
     return df
 
 @st.cache
-def sketchify(jc):
-    jc = np.uint8(jc)
-    scale_percent = 1
-    width = int(jc.shape[1]*scale_percent)
-    height = int(jc.shape[0]*scale_percent)
-    dim = (width,height)
-    resized = cv2.resize(jc,dim,interpolation = cv2.INTER_AREA)
-    kernel_sharpening = np.array([[-1,-1,-1], 
-                                  [-1, 9,-1],
-                                  [-1,-1,-1]])
-    sharpened = cv2.filter2D(resized,-1,kernel_sharpening)
-    gray = cv2.cvtColor(sharpened , cv2.COLOR_BGR2GRAY)
-    inv = 255-gray
-    gauss = cv2.GaussianBlur(inv,ksize=(15,15),sigmaX=0,sigmaY=0)
-    def dodgeV2(image,mask):
-        return cv2.divide(image,255-mask,scale=256)
-
-    pencil_jc = 255 - dodgeV2(gray,gauss)
-    img = np.zeros(jc.shape)
-    img[:,:,0] = pencil_jc
-    img[:,:,1] = pencil_jc
-    img[:,:,2] = pencil_jc
-    return img
-
-@st.cache
 def get_embeddings(model, img):
     img = cv2.resize(img,(256,256),interpolation = cv2.INTER_AREA)
     sketch_im = sketchify(img)/255
@@ -60,15 +35,11 @@ def get_embeddings(model, img):
         class_name.append(class_index[i])
     return class_name, embedding_vector
 
-def cosine_similarity(a,b):
-    return dot(a, b)/(norm(a)*norm(b))
-
 @st.cache
 def load_pretrained_model():
     weigths_path = '../../pretrained/model.h5'
     return load_model(weigths_path)
     
-
 def find_similarity(df, embedding_vector,my_bar):
     similarity = []
     for i in range(len(df)):
