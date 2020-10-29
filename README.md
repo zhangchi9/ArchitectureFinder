@@ -15,7 +15,7 @@
   <h3 align="center">ArchiFinder</h3>
 
   <p align="center">
-    Find real architectures from architectural sketches
+    Find buildings from architectural sketches
     <br />
     <a href="http://archifinder.xyz"><strong>Explore the web application »</strong></a>
     <br />
@@ -68,7 +68,7 @@ To get a local copy up and running follow these simple example steps.
 ```sh
 git clone https://github.com/zhangchi9/ArchitectureFinder
 cd ArchitectureFinder
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 <!-- USAGE EXAMPLES -->
